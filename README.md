@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # cuud_procject
 
 A new Flutter project.
@@ -14,3 +15,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# CRUD-App
+this is testable project 
+>>>>>>> 9c03c136de36eb7c4aafb202f473eb110fa71f39
