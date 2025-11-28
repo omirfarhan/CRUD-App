@@ -149,11 +149,18 @@ class _HomePageState extends State<HomePage> {
                 return const Text('data is empty');
               }
               final people = snapshot.data as List<Person>;
-              return ListView.builder(
-                itemCount: people.length,
-                itemBuilder: (context, index) {
-                  return const Text('Hello');
-                },
+              return Column(
+                children: [
+                  ComposeWidget(),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: people.length,
+                      itemBuilder: (context, index) {
+                        return const Text('Hello');
+                      },
+                    ),
+                  ),
+                ],
               );
 
               return const Text('OK');
@@ -162,6 +169,57 @@ class _HomePageState extends State<HomePage> {
               return const Center(child: CircularProgressIndicator());
           }
         },
+      ),
+    );
+  }
+}
+
+class ComposeWidget extends StatefulWidget {
+  const ComposeWidget({super.key});
+
+  @override
+  State<ComposeWidget> createState() => _ComposeWidgetState();
+}
+
+class _ComposeWidgetState extends State<ComposeWidget> {
+  late final TextEditingController _firstnameController;
+  late final TextEditingController _lastnameController;
+
+  @override
+  void initState() {
+    _firstnameController = TextEditingController();
+    _lastnameController = TextEditingController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _firstnameController.dispose();
+    _lastnameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          TextField(
+            controller: _firstnameController,
+            decoration: const InputDecoration(hintText: 'Enter first name'),
+          ),
+
+          TextField(
+            controller: _lastnameController,
+            decoration: InputDecoration(hintText: 'Enter last name'),
+          ),
+
+          TextButton(
+            onPressed: () {},
+            child: const Text('Add to List', style: TextStyle(fontSize: 22)),
+          ),
+        ],
       ),
     );
   }
