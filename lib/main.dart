@@ -111,6 +111,33 @@ class PersonDb {
     }
   }
 
+  Future<bool> update(Person person) async {
+    final db = _db;
+    if (db == null) {
+      return false;
+    }
+
+    try {
+      final updateCount = await db.update(
+        'PEOPLE',
+        {'FIRST_NAME': person.firstname, 'LAST_NAME': person.lastname},
+        where: 'ID = ?',
+        whereArgs: [person.id],
+      );
+
+      if (updateCount == 1) {
+        _persons.removeWhere((other) => other.id == person.id);
+        _persons.add(person);
+        _streamcontorller.add(_persons);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> close() async {
     final db = _db;
     if (db == null) {
@@ -207,6 +234,16 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final person = people[index];
                         return ListTile(
+                          onTap: () async {
+                            final editedperson = await showUpdatedialoge(
+                              context,
+                              person,
+                            );
+
+                            if (editedperson != null) {
+                              await _cloudStorage.update(editedperson);
+                            }
+                          },
                           title: Text(person.fullname),
                           subtitle: Text('ID: ${person.id}'),
                           trailing: TextButton(
@@ -237,6 +274,56 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+final _firstnameController = TextEditingController();
+final _lastnameController = TextEditingController();
+
+Future<Person?> showUpdatedialoge(BuildContext context, Person person) async {
+  _firstnameController.text = person.firstname;
+  _lastnameController.text = person.lastname;
+
+  return showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your updated values here: '),
+            TextField(controller: _firstnameController),
+            TextField(controller: _lastnameController),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop(null);
+            },
+            child: const Text('Cancel'),
+          ),
+
+          TextButton(
+            onPressed: () async {
+              final Editperson = Person(
+                id: person.id,
+                firstname: _firstnameController.text,
+                lastname: _lastnameController.text,
+              );
+              Navigator.of(context).pop(Editperson);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    },
+  ).then((value) {
+    if (value is Person) {
+      return value;
+    } else {
+      return null;
+    }
+  });
 }
 
 typedef OnCompose = void Function(String firstname, String lastname);
