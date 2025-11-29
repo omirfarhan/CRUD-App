@@ -15,6 +15,8 @@ class Person implements Comparable {
     required this.lastname,
   });
 
+  String get fullname => '$firstname $lastname';
+
   Person.fromRow(Map<String, Object?> map)
     : id = map['ID'] as int,
       firstname = map['FIRST_NAME'] as String,
@@ -24,15 +26,12 @@ class Person implements Comparable {
   @override
   int compareTo(covariant Person other) => other.id.compareTo(id);
 
-  //অবজেক্ট equality চেক করার সময় শুধু id ব্যবহার হবে, অন্য ফিল্ড নয়
   @override
   bool operator ==(covariant Person other) => id == other.id;
 
-  //যখন অবজেক্টকে Set বা Map এ ব্যবহার করা হবে, তখন id দিয়ে hash তৈরি হবে
   @override
   int get hashCode => id.hashCode;
 
-  //দরকার: debugging বা লগ করার সময় সহজে বোঝা যাবে অবজেক্টে কী আছে
   @override
   String toString() =>
       'Person, ID=$id, firstname = $firstname, lastname = $lastname';
@@ -63,6 +62,52 @@ class PersonDb {
       return people;
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<bool> insert(String firstname, String lastname) async {
+    final db = _db;
+    if (db == null) {
+      return false;
+    }
+    try {
+      final id = await db.insert('PEOPLE', {
+        'FIRST_NAME': firstname,
+        'LAST_NAME': lastname,
+      });
+
+      final person = Person(id: id, firstname: firstname, lastname: lastname);
+
+      _persons.add(person);
+      _streamcontorller.add(_persons);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> delete(Person person) async {
+    final db = _db;
+    if (db == null) {
+      return false;
+    }
+
+    try {
+      final deleteCount = await db.delete(
+        'PEOPLE',
+        where: ' ID= ? ',
+        whereArgs: [person.id],
+      );
+
+      if (deleteCount == 1) {
+        _persons.remove(person);
+        _streamcontorller.add(_persons);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      return false;
     }
   }
 
@@ -151,12 +196,32 @@ class _HomePageState extends State<HomePage> {
               final people = snapshot.data as List<Person>;
               return Column(
                 children: [
-                  ComposeWidget(),
+                  ComposeWidget(
+                    onCompose: (String firstname, String lastname) async {
+                      await _cloudStorage.insert(firstname, lastname);
+                    },
+                  ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: people.length,
                       itemBuilder: (context, index) {
-                        return const Text('Hello');
+                        final person = people[index];
+                        return ListTile(
+                          title: Text(person.fullname),
+                          subtitle: Text('ID: ${person.id}'),
+                          trailing: TextButton(
+                            onPressed: () async {
+                              final dialoges = await showDeleteDialoge(context);
+                              if (dialoges) {
+                                await _cloudStorage.delete(person);
+                              }
+                            },
+                            child: const Icon(
+                              Icons.disabled_by_default_rounded,
+                              color: Colors.red,
+                            ),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -174,8 +239,11 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+typedef OnCompose = void Function(String firstname, String lastname);
+
 class ComposeWidget extends StatefulWidget {
-  const ComposeWidget({super.key});
+  final OnCompose onCompose;
+  const ComposeWidget({super.key, required this.onCompose});
 
   @override
   State<ComposeWidget> createState() => _ComposeWidgetState();
@@ -216,13 +284,51 @@ class _ComposeWidgetState extends State<ComposeWidget> {
           ),
 
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              final firstname = _firstnameController.text;
+              final lastname = _lastnameController.text;
+              widget.onCompose(firstname, lastname);
+              _firstnameController.text = '';
+              _lastnameController.text = '';
+            },
             child: const Text('Add to List', style: TextStyle(fontSize: 22)),
           ),
         ],
       ),
     );
   }
+}
+
+Future<bool> showDeleteDialoge(BuildContext context) {
+  return showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        content: Text('Are you sure you want to delete this item?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+            child: const Text('No'),
+          ),
+
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  ).then((value) {
+    if (value is bool) {
+      return value;
+    } else {
+      return false;
+    }
+  });
 }
 
 void main() {
